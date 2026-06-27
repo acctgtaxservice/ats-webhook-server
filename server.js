@@ -59,7 +59,7 @@ app.post('/create-checkout', async (req, res) => {
               quantity: 1,
             }
           ],
-          payment_method_types: ['gcash', 'card', 'paymaya'],
+          payment_method_types: ['qrph'],
         }
       }
     });
@@ -90,7 +90,9 @@ app.post('/create-checkout', async (req, res) => {
 
     if (pmRes.status !== 200 && pmRes.status !== 201) {
       console.error('PayMongo error:', JSON.stringify(responseData));
-      return res.status(502).json({ error: 'Failed to create checkout session' });
+      // Return the actual PayMongo error so we can debug
+      const pmError = responseData?.errors?.[0]?.detail || 'Failed to create checkout session';
+      return res.status(502).json({ error: pmError, raw: responseData });
     }
 
     const checkoutUrl = responseData?.data?.attributes?.checkout_url;
