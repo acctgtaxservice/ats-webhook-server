@@ -109,6 +109,80 @@ app.post('/create-checkout', async (req, res) => {
   }
 });
 
+// ── CREATE CHECKOUT — ACCOUNTING SYSTEM ──
+app.post('/create-checkout-accounting', async (req, res) => {
+  try {
+    if (!PAYMONGO_SECRET_KEY) {
+      return res.status(500).json({ error: 'Server not configured' });
+    }
+
+    const payload = JSON.stringify({
+      data: {
+        attributes: {
+          send_email_receipt: false,
+          show_description: true,
+          show_line_items: true,
+          cancel_url: CANCEL_URL,
+          success_url: process.env.DOWNLOAD_ACCOUNTING_URL || 'https://acctgtaxservice.com/download-accounting.html',
+          description: 'Professional Accounting System PH v2026',
+          line_items: [
+            {
+              currency: 'PHP',
+              amount: 98900, // ₱989.00
+              description: 'Complete double-entry bookkeeping system — Journal, Ledger, Financial Statements, Dashboard',
+              name: 'Professional Accounting System PH v2026',
+              quantity: 1,
+            }
+          ],
+          payment_method_types: ['qrph'],
+        }
+      }
+    });
+
+    const options = {
+      hostname: 'api.paymongo.com',
+      path: '/v1/checkout_sessions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(PAYMONGO_SECRET_KEY + ':').toString('base64')}`,
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    };
+
+    const pmRes = await new Promise((resolve, reject) => {
+      const pmReq = https.request(options, (pmRes) => {
+        let data = '';
+        pmRes.on('data', chunk => data += chunk);
+        pmRes.on('end', () => resolve({ status: pmRes.statusCode, body: data }));
+      });
+      pmReq.on('error', reject);
+      pmReq.write(payload);
+      pmReq.end();
+    });
+
+    const responseData = JSON.parse(pmRes.body);
+
+    if (pmRes.status !== 200 && pmRes.status !== 201) {
+      console.error('PayMongo error:', JSON.stringify(responseData));
+      const pmError = responseData?.errors?.[0]?.detail || 'Failed to create checkout session';
+      return res.status(502).json({ error: pmError, raw: responseData });
+    }
+
+    const checkoutUrl = responseData?.data?.attributes?.checkout_url;
+    if (!checkoutUrl) {
+      return res.status(502).json({ error: 'No checkout URL returned' });
+    }
+
+    console.log(`✅ Accounting checkout created: ${checkoutUrl}`);
+    res.json({ checkout_url: checkoutUrl });
+
+  } catch (err) {
+    console.error('Accounting checkout error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── WEBHOOK ENDPOINT ──
 app.post('/webhook', (req, res) => {
   try {
