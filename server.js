@@ -53,7 +53,7 @@ app.post('/create-checkout', async (req, res) => {
           line_items: [
             {
               currency: 'PHP',
-              amount: 14900,
+              amount: 49900,
               description: 'Auto-computed SSS, PhilHealth, Pag-IBIG & BIR TRAIN Law Ready',
               name: 'Philippine Payroll Excel Template v2026',
               quantity: 1,
